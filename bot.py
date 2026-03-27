@@ -6,7 +6,7 @@ import sys
 import random
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -16,6 +16,8 @@ from telegram.ext import (
 # --- CONFIGURATION ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 PORT = int(os.environ.get("PORT", 8080))
+CHANNEL_LINK = "https://t.me/brosmasters_" # Your channel link
+CHANNEL_NAME = "포커브로스 판다 클럽"
 
 if not TOKEN:
     print("ERROR: TELEGRAM_BOT_TOKEN environment variable is not set!")
@@ -25,7 +27,7 @@ if not TOKEN:
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- GREATNESS QUOTES (30 TOTAL) ---
+# --- GREATNESS QUOTES ---
 MOTIVATION_QUOTES = [
     "Greatness is not a function of circumstance; greatness is a matter of conscious choice.",
     "The secret of your future is hidden in your daily routine.",
@@ -62,7 +64,7 @@ MOTIVATION_QUOTES = [
 # --- BOT LOGIC ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Starts the 2-hour motivation cycle."""
+    """Starts the 2-hour motivation cycle and redirects to channel."""
     chat_id = update.effective_chat.id
     user_name = update.effective_user.first_name
 
@@ -75,29 +77,43 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.job_queue.run_repeating(
         send_motivation, 
         interval=timedelta(hours=2), 
-        first=0, # Send the first one immediately
+        first=0, 
         chat_id=chat_id, 
         name=str(chat_id)
     )
 
+    # Create the redirection button
+    keyboard = [
+        [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_LINK)]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     logger.info(f"Motivation cycle started for {user_name} ({chat_id})")
+    
     await update.message.reply_text(
         f"Hello {user_name}! 🌟\n\n"
         "Your journey to greatness begins now.\n"
         "I will send you powerful motivation every 2 hours to keep your fire burning.\n\n"
-        "Stay focused. Stay great."
+        f"In the meantime, join our official community: **{CHANNEL_NAME}**",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
     )
 
 async def send_motivation(context: ContextTypes.DEFAULT_TYPE):
     """Callback to send a random quote."""
-    job = context.job()
+    job = context.job.data if hasattr(context.job, 'data') else context.job
     quote = random.choice(MOTIVATION_QUOTES)
+    
+    # Optional: Include the channel button in every motivational message as well
+    keyboard = [[InlineKeyboardButton("Join Channel", url=CHANNEL_LINK)]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     text = f"🚀 **TIME TO BE GREAT**\n\n\"{quote}\"\n\nKeep pushing forward!"
     
     await context.bot.send_message(
         chat_id=job.chat_id, 
         text=text,
+        reply_markup=reply_markup,
         parse_mode='Markdown'
     )
 
