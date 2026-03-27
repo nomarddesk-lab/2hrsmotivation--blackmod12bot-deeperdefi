@@ -3,8 +3,6 @@ import logging
 import asyncio
 import threading
 import sys
-import random
-from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -16,7 +14,7 @@ from telegram.ext import (
 # --- CONFIGURATION ---
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 PORT = int(os.environ.get("PORT", 8080))
-CHANNEL_LINK = "https://t.me/brosmasters_" # Your channel link
+CHANNEL_LINK = "https://t.me/brosmasters" 
 CHANNEL_NAME = "포커브로스 판다 클럽"
 
 if not TOKEN:
@@ -27,92 +25,34 @@ if not TOKEN:
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# --- GREATNESS QUOTES ---
-MOTIVATION_QUOTES = [
-    "Greatness is not a function of circumstance; greatness is a matter of conscious choice.",
-    "The secret of your future is hidden in your daily routine.",
-    "Don't be afraid to give up the good to go for the great.",
-    "The only way to achieve greatness is to love what you do.",
-    "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    "Greatness is won, not given. It is the result of tireless effort.",
-    "To be great, you must be willing to be misunderstood, criticized, and doubted.",
-    "He who is not courageous enough to take risks will accomplish nothing in life.",
-    "The distance between dreams and reality is called discipline.",
-    "Stop chasing the money and start chasing the passion and the greatness.",
-    "Greatness lives in the heart of the person who refuses to settle for average.",
-    "You were born to be great, but you must choose to be great every single day.",
-    "Success is walking from failure to failure with no loss of enthusiasm.",
-    "Your greatness is revealed not by the lights that shine on you, but by the light that shines within you.",
-    "Small deeds done are better than great deeds planned.",
-    "The quality of a man's life is in direct proportion to his commitment to excellence.",
-    "Don't wait for opportunity. Create it.",
-    "Great minds discuss ideas; average minds discuss events; small minds discuss people.",
-    "If you want to be great, you have to stop asking for permission.",
-    "Greatness is found in the struggle, not the victory.",
-    "Everything you've ever wanted is on the other side of fear.",
-    "The only limit to our realization of tomorrow will be our doubts of today.",
-    "Do not pray for an easy life, pray for the strength to endure a difficult one.",
-    "Hard work beats talent when talent doesn't work hard.",
-    "Greatness is the ability to maintain focus when everything around you is chaotic.",
-    "Your life does not get better by chance, it gets better by change.",
-    "Success isn't always about greatness. It's about consistency.",
-    "Be so good they can't ignore you.",
-    "A great person is one who makes everyone else feel great.",
-    "The path to greatness is often a lonely one. Keep walking."
-]
-
 # --- BOT LOGIC ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Starts the 2-hour motivation cycle and redirects to channel."""
+    """Welcomes the user in Korean and provides the channel link for bonuses."""
     chat_id = update.effective_chat.id
     user_name = update.effective_user.first_name
 
-    # Remove existing jobs to avoid multiple cycles
-    current_jobs = context.job_queue.get_jobs_by_name(str(chat_id))
-    for job in current_jobs:
-        job.schedule_removal()
-
-    # Schedule the 2-hour recurring motivation
-    context.job_queue.run_repeating(
-        send_motivation, 
-        interval=timedelta(hours=2), 
-        first=0, 
-        chat_id=chat_id, 
-        name=str(chat_id)
-    )
-
     # Create the redirection button
     keyboard = [
-        [InlineKeyboardButton("📢 Join Our Channel", url=CHANNEL_LINK)]
+        [InlineKeyboardButton("📢 채널 가입하고 무료 선물 받기", url=CHANNEL_LINK)]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    logger.info(f"Motivation cycle started for {user_name} ({chat_id})")
+    logger.info(f"User {user_name} ({chat_id}) started the bot.")
     
-    await update.message.reply_text(
-        f"Hello {user_name}! 🌟\n\n"
-        "Your journey to greatness begins now.\n"
-        "I will send you powerful motivation every 2 hours to keep your fire burning.\n\n"
-        f"In the meantime, join our official community: **{CHANNEL_NAME}**",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
+    # Promotional message in Korean
+    welcome_message = (
+        f"안녕하세요, {user_name}님! 🌟\n\n"
+        f"**{CHANNEL_NAME}**에 오신 것을 환영합니다!\n\n"
+        "🎁 **독점 혜택 안내:**\n"
+        "• 지금 채널 가입 시 무료 보너스 증정\n"
+        "• 100% 무료 회원가입 가능\n"
+        "• 가입 즉시 특별 무료 선물 잠금 해제\n\n"
+        "아래 버튼을 클릭하여 지금 바로 혜택을 확인하세요!"
     )
 
-async def send_motivation(context: ContextTypes.DEFAULT_TYPE):
-    """Callback to send a random quote."""
-    job = context.job.data if hasattr(context.job, 'data') else context.job
-    quote = random.choice(MOTIVATION_QUOTES)
-    
-    # Optional: Include the channel button in every motivational message as well
-    keyboard = [[InlineKeyboardButton("Join Channel", url=CHANNEL_LINK)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    text = f"🚀 **TIME TO BE GREAT**\n\n\"{quote}\"\n\nKeep pushing forward!"
-    
-    await context.bot.send_message(
-        chat_id=job.chat_id, 
-        text=text,
+    await update.message.reply_text(
+        welcome_message,
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
@@ -123,7 +63,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/plain')
         self.end_headers()
-        self.wfile.write(b"Greatness Bot is active")
+        self.wfile.write(b"Channel Redirection Bot is active")
     def log_message(self, format, *args): return
 
 def run_health_check():
@@ -132,7 +72,7 @@ def run_health_check():
 
 # --- MAIN ---
 async def main():
-    # Run health check server in background
+    # Run health check server in background (useful for keeping the bot alive on services like Render)
     threading.Thread(target=run_health_check, daemon=True).start()
     
     # Initialize application
