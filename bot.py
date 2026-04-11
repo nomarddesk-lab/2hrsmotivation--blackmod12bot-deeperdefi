@@ -52,7 +52,7 @@ STRINGS = {
         'min_10': "10 Dakika",
         'min_30': "30 Dakika",
         'hour_1': "1 Saat",
-        'set': "✅ {} için hatırlatıcı kuruldu!",
+        'set': "✅ {} için hatırlatıcı kurul두!",
         'alarm': "⏰ **SÜRE DOLDU!** Bu sizin {} hatırlatıcınız.",
         'back': "Dil Seçimine Dön"
     }
@@ -149,11 +149,11 @@ def run_health_check():
     httpd.serve_forever()
 
 # --- MAIN ---
-def main():
+async def main():
     # Run health check server in background
     threading.Thread(target=run_health_check, daemon=True).start()
     
-    # Initialize application with JobQueue enabled
+    # Initialize application
     application = ApplicationBuilder().token(TOKEN).build()
 
     # Handlers
@@ -162,11 +162,18 @@ def main():
     application.add_handler(CallbackQueryHandler(language_choice, pattern="^lang_"))
     application.add_handler(CallbackQueryHandler(set_reminder, pattern="^time_"))
 
-    logger.info(f"Bot started on port {PORT}")
-    application.run_polling()
+    # Explicitly manage the lifecycle to avoid event loop issues on Render
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        logger.info(f"Bot started on port {PORT}")
+        # Use an Event to keep the script running indefinitely
+        stop_event = asyncio.Event()
+        await stop_event.wait()
 
 if __name__ == '__main__':
     try:
-        main()
+        asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped.")
